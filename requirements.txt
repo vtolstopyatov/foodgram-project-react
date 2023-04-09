@@ -1,0 +1,7 @@
+django
+djangorestframework
+django-filter
+flake8
+gunicorn
+djoser
+djangorestframework_simplejwt==4.7.2 
