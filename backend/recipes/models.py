@@ -22,11 +22,6 @@ class Recipes(models.Model):
         models.CASCADE,
         related_name='recipes'
     )
-    ingredients = models.ManyToManyField(
-        Ingredients,
-        through='IngredientsAmount',
-        related_name='recipes'
-    )
     tags = models.ManyToManyField(
         Tags,
         related_name='recipes'
@@ -39,13 +34,13 @@ class Recipes(models.Model):
     cooking_time = models.IntegerField(
         validators=[MinValueValidator(1)]
     )
+    followers = models.ManyToManyField(User, related_name='favorite')
 
 
 class IngredientsAmount(models.Model):
     ingredients = models.ForeignKey(Ingredients, on_delete=models.CASCADE)
-    recipes = models.ForeignKey(Recipes, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(Recipes, on_delete=models.CASCADE, related_name='ingredients')
     amount = models.IntegerField()
-
 
 
 # class Favorite(models.Model):
@@ -54,7 +49,7 @@ class IngredientsAmount(models.Model):
 #         models.CASCADE,
 #         related_name='favorite',
 #     )
-#     recipes = models.ForeignKey(
+#     recipe = models.ForeignKey(
 #         Recipes,
 #         models.CASCADE,
 #         related_name='followers',
