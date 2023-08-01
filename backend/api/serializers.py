@@ -2,7 +2,7 @@ import base64
 from django.core.files.base import ContentFile
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from recipes.models import Recipes, Ingredients, IngredientsAmount, Tags
+from recipes.models import Recipes, Ingredients, IngredientsAmount, Tags, Follow
 
 User = get_user_model()
 
@@ -25,9 +25,20 @@ class IngredientsSerializer(serializers.ModelSerializer):
 
 
 class UsersSerializer(serializers.ModelSerializer):
+    is_subscribed = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name')
+        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed')
+
+    def get_is_subscribed(self, obj):
+        user = self.context.get('request').user
+        if user.is_authenticated:
+            return Follow.objects.filter(
+                user=user,
+                author=obj,
+            ).exists()
+        return False
 
 
 class IngredientsAmountSerializer(serializers.ModelSerializer):
@@ -37,7 +48,7 @@ class IngredientsAmountSerializer(serializers.ModelSerializer):
         source='ingredients.measurement_unit'
     )
     amount = serializers.IntegerField(min_value=1)
-    
+
     class Meta:
         model = IngredientsAmount
         fields = (
@@ -59,10 +70,7 @@ class RecipesSerializer(serializers.ModelSerializer):
     author = UsersSerializer(read_only=True)
     ingredients = IngredientsAmountSerializer(many=True)
     image = Base64ImageField(required=True, allow_null=True)
-    is_favorited = serializers.BooleanField(
-        read_only=True,
-        default=False,
-    )
+    is_favorited = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipes
@@ -72,13 +80,12 @@ class RecipesSerializer(serializers.ModelSerializer):
             'text', 'cooking_time', 'image',
         )
 
-    def to_representation(self, instance):
+    def get_is_favorited(self, obj):
         user = self.context.get('request').user
-        ret = super().to_representation(instance)
         if user.is_authenticated:
-            ret['is_favorited'] = instance in user.favorite.all()
-        return ret
-    
+            return obj in user.favorite.all()
+        return False
+
     def create(self, validated_data):
         user = self.context.get('request').user
         ingredients = validated_data.pop('ingredients')
@@ -99,3 +106,40 @@ class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipes
         fields = ('id', 'name', 'cooking_time', 'image',)
+
+
+class SubscriptionsRecipesSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Recipes
+        fields = (
+            'id', 'name', 'image', 'cooking_time',
+        )
+
+
+class SubscriptionsSerializer(UsersSerializer):
+    recipes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'recipes')
+
+    def get_recipes(self, obj):
+        """Получает объекты для поля recipes"""
+        request = self.context.get('request')
+        recipes_limit = request.query_params.get('recipes_limit')
+        if recipes_limit:
+            queryset = Recipes.objects.filter(
+                author=obj)[:int(recipes_limit)]
+        else:
+            queryset = obj.recipes
+        serializer = SubscriptionsRecipesSerializer(instance=queryset, many=True)
+        return serializer.data
+
+
+class ShoppingCartSerializer(RecipesSerializer):
+    class Meta:
+        model = Recipes
+        fields = (
+            'id', 'name', 'image', 'cooking_time',
+        )

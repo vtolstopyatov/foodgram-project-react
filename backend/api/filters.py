@@ -15,14 +15,6 @@ class RecipesFilter(filters.FilterSet):
         field_name='author__pk',
         lookup_expr='exact',
     )
-    # name = filters.CharFilter(
-    #     field_name='name',
-    #     lookup_expr='contains',
-    # )
-    # year = filters.CharFilter(
-    #     field_name='year',
-    #     lookup_expr='contains',
-    # )
 
     class Meta:
         model = Recipes
@@ -35,7 +27,7 @@ class IngredientsFilter(filters.FilterSet):
     """
     name = filters.CharFilter(
         field_name='name',
-        lookup_expr='contains',
+        lookup_expr='istartswith',
     )
 
     class Meta:

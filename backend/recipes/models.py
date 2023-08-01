@@ -19,7 +19,7 @@ class Tags(models.Model):
 class Recipes(models.Model):
     author = models.ForeignKey(
         User,
-        models.CASCADE,
+        on_delete=models.CASCADE,
         related_name='recipes'
     )
     tags = models.ManyToManyField(
@@ -39,31 +39,35 @@ class Recipes(models.Model):
 
 class IngredientsAmount(models.Model):
     ingredients = models.ForeignKey(Ingredients, on_delete=models.CASCADE)
-    recipe = models.ForeignKey(Recipes, on_delete=models.CASCADE, related_name='ingredients')
+    recipe = models.ForeignKey(
+        Recipes,
+        on_delete=models.CASCADE,
+        related_name='ingredients'
+    )
     amount = models.IntegerField()
 
 
-# class Favorite(models.Model):
-#     user = models.ForeignKey(
-#         User,
-#         models.CASCADE,
-#         related_name='favorite',
-#     )
-#     recipe = models.ForeignKey(
-#         Recipes,
-#         models.CASCADE,
-#         related_name='followers',
-#     )
+class Follow(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follower',
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='following',
+    )
 
 
-# class ShoppingBag(models.Model):
-#     user = models.ForeignKey(
-#         User,
-#         models.CASCADE,
-#         related_name='favorite',
-#     )
-#     recipes = models.ForeignKey(
-#         Recipes,
-#         models.CASCADE,
-#         related_name='followers',
-#     )
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='shopping_cart',
+    )
+    recipe = models.ForeignKey(
+        Recipes,
+        on_delete=models.CASCADE,
+        related_name='shopping_cart',
+    )
