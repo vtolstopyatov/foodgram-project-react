@@ -175,11 +175,8 @@ class UsersViewSet(viewsets.ModelViewSet):
         pages = self.paginate_queryset(
             User.objects.filter(following__user=user).order_by('pk')
         )
-        serializer = SubscriptionsSerializer(pages, many=True, context={'request': request})            #fix paginate and result field
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
+        serializer = SubscriptionsSerializer(pages, many=True, context={'request': request})
+        return self.get_paginated_response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def subscribe(self, request, pk=None):

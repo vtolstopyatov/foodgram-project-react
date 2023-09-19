@@ -119,10 +119,11 @@ class SubscriptionsRecipesSerializer(serializers.ModelSerializer):
 
 class SubscriptionsSerializer(UsersSerializer):
     recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'recipes')
+        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed', 'recipes', 'recipes_count')
 
     def get_recipes(self, obj):
         """Получает объекты для поля recipes"""
@@ -136,6 +137,9 @@ class SubscriptionsSerializer(UsersSerializer):
         serializer = SubscriptionsRecipesSerializer(instance=queryset, many=True)
         return serializer.data
 
+    def get_recipes_count(self, obj):
+        count = Recipes.objects.filter(author=obj).count()
+        return count
 
 class ShoppingCartSerializer(RecipesSerializer):
     class Meta:
