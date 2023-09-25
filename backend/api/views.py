@@ -26,7 +26,6 @@ class RecipesViewSet(viewsets.ModelViewSet):
     serializer_class = RecipesSerializer
     pagination_class = PageNumberPagination
     filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('tags__slug',)
     filterset_class = RecipesFilter
 
     def get_permissions(self):
