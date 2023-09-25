@@ -193,7 +193,7 @@ class UsersViewSet(viewsets.ModelViewSet):
             )
         f = Follow.objects.create(user=user, author=author)
         f.save()
-        serializer = UsersSerializer(author, context={'request': request})
+        serializer = SubscriptionsSerializer(author, context={'request': request})
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
