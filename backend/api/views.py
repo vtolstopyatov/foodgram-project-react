@@ -1,30 +1,44 @@
-from django_filters.rest_framework import DjangoFilterBackend
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
-from recipes.models import Recipes, Ingredients, Tags, Follow, ShoppingCart, IngredientsAmount
-from .serializers import RecipesSerializer, UsersSerializer, IngredientsSerializer, TagsSerializer, FavoriteSerializer, SubscriptionsSerializer, ShoppingCartSerializer
-from rest_framework import viewsets, mixins, status, filters
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
+from django.http import FileResponse
+from django_filters.rest_framework import DjangoFilterBackend
+from recipes.models import (
+    Follow,
+    Ingredients,
+    IngredientsAmount,
+    Recipes,
+    ShoppingCart,
+    Tags,
+)
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from django.db.models.signals import m2m_changed
-from django.core.signals import request_finished
-from django.http import HttpResponse, FileResponse
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
 from .filters import RecipesFilter
-from io import BytesIO
+from .pagination import LimitPageNumberPagination
+from .serializers import (
+    FavoriteSerializer,
+    IngredientsSerializer,
+    RecipesSerializer,
+    ShoppingCartSerializer,
+    SubscriptionsSerializer,
+    TagsSerializer,
+    UsersSerializer,
+)
+from djoser.serializers import UserCreateSerializer, SetPasswordSerializer
+from djoser.views import UserViewSet as DjoserUserViewSet
 
 User = get_user_model()
 
 
-class LimitPageNumberPagination(PageNumberPagination):
-    page_size_query_param = 'limit'
-
-
 class RecipesViewSet(viewsets.ModelViewSet):
+    """Viewset модели Recipes"""
     queryset = Recipes.objects.all()
     serializer_class = RecipesSerializer
-    pagination_class = PageNumberPagination
+    pagination_class = LimitPageNumberPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipesFilter
 
@@ -133,6 +147,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
 
 
 class IngredientsViewSet(viewsets.ModelViewSet):
+    """Viewset модели Ingredients"""
     queryset = Ingredients.objects.all()
     serializer_class = IngredientsSerializer
     pagination_class = None
@@ -140,6 +155,7 @@ class IngredientsViewSet(viewsets.ModelViewSet):
 
 
 class TagsViewSet(viewsets.ModelViewSet):
+    """Viewset модели Tags"""
     queryset = Tags.objects.all()
     serializer_class = TagsSerializer
     pagination_class = None
@@ -147,14 +163,24 @@ class TagsViewSet(viewsets.ModelViewSet):
 
 
 class UsersViewSet(viewsets.ModelViewSet):
+    """Viewset модели User"""
     queryset = User.objects.all()
-    serializer_class = UsersSerializer
-    pagination_class = PageNumberPagination
+    # serializer_class = UsersSerializer
+    pagination_class = LimitPageNumberPagination
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
+        elif self.action == "set_password":
+            return SetPasswordSerializer
+        return UsersSerializer
 
     def get_permissions(self):
         if self.action == "create":
             self.permission_classes = [AllowAny]
         elif self.action == "list":
+            self.permission_classes = [AllowAny]
+        elif self.action == "retrive":
             self.permission_classes = [AllowAny]
         return super().get_permissions()
 
@@ -164,7 +190,18 @@ class UsersViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(user)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], serializer_class=SubscriptionsSerializer)
+    @action(detail=False, methods=['post'])
+    def set_password(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.request.user.set_password(serializer.data["new_password"])
+        self.request.user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=False, methods=['get'],
+        serializer_class=SubscriptionsSerializer,
+    )
     def subscriptions(self, request, *args, **kwargs):
         """
         Возвращает пользователей, на которых подписан текущий пользователь.
@@ -174,11 +211,14 @@ class UsersViewSet(viewsets.ModelViewSet):
         pages = self.paginate_queryset(
             User.objects.filter(following__user=user).order_by('pk')
         )
-        serializer = SubscriptionsSerializer(pages, many=True, context={'request': request})
+        serializer = SubscriptionsSerializer(
+            pages, many=True, context={'request': request},
+        )
         return self.get_paginated_response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def subscribe(self, request, pk=None):
+        """Подписаться на пользователя"""
         author = self.get_object()
         user = request.user
         if user.follower.filter(user=user, author=author):
@@ -193,7 +233,9 @@ class UsersViewSet(viewsets.ModelViewSet):
             )
         f = Follow.objects.create(user=user, author=author)
         f.save()
-        serializer = SubscriptionsSerializer(author, context={'request': request})
+        serializer = SubscriptionsSerializer(
+            author, context={'request': request},
+        )
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
@@ -201,6 +243,7 @@ class UsersViewSet(viewsets.ModelViewSet):
 
     @subscribe.mapping.delete
     def unsubscribe(self, request, pk=None):
+        """Отписаться от пользователя"""
         author = self.get_object()
         user = request.user
         if user.follower.filter(user=user, author=author):

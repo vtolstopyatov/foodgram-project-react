@@ -1,8 +1,10 @@
 import base64
-from django.core.files.base import ContentFile
+
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
+from recipes.models import (Follow, Ingredients, IngredientsAmount, Recipes,
+                            Tags)
 from rest_framework import serializers
-from recipes.models import Recipes, Ingredients, IngredientsAmount, Tags, Follow
 
 User = get_user_model()
 
@@ -29,7 +31,10 @@ class UsersSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed')
+        fields = (
+            'email', 'id', 'username', 'first_name', 'last_name',
+            'is_subscribed',
+        )
 
     def get_is_subscribed(self, obj):
         user = self.context.get('request').user
@@ -112,9 +117,7 @@ class SubscriptionsRecipesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipes
-        fields = (
-            'id', 'name', 'image', 'cooking_time',
-        )
+        fields = ('id', 'name', 'image', 'cooking_time')
 
 
 class SubscriptionsSerializer(UsersSerializer):
@@ -123,7 +126,10 @@ class SubscriptionsSerializer(UsersSerializer):
 
     class Meta:
         model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed', 'recipes', 'recipes_count')
+        fields = (
+            'email', 'id', 'username', 'first_name', 'last_name',
+            'is_subscribed', 'recipes', 'recipes_count',
+        )
 
     def get_recipes(self, obj):
         """Получает объекты для поля recipes"""
@@ -134,16 +140,17 @@ class SubscriptionsSerializer(UsersSerializer):
                 author=obj)[:int(recipes_limit)]
         else:
             queryset = obj.recipes
-        serializer = SubscriptionsRecipesSerializer(instance=queryset, many=True)
+        serializer = SubscriptionsRecipesSerializer(
+            instance=queryset, many=True,
+        )
         return serializer.data
 
     def get_recipes_count(self, obj):
         count = Recipes.objects.filter(author=obj).count()
         return count
 
+
 class ShoppingCartSerializer(RecipesSerializer):
     class Meta:
         model = Recipes
-        fields = (
-            'id', 'name', 'image', 'cooking_time',
-        )
+        fields = ('id', 'name', 'image', 'cooking_time')
