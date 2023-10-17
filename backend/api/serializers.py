@@ -71,17 +71,27 @@ class TagsSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'color', 'slug')
 
 
+class TagField(serializers.PrimaryKeyRelatedField):
+
+    def to_representation(self, value):
+        return TagsSerializer(value, context={
+            'request': self.context.get('request')
+        }).data
+
+
 class RecipesSerializer(serializers.ModelSerializer):
     author = UsersSerializer(read_only=True)
     ingredients = IngredientsAmountSerializer(many=True)
     image = Base64ImageField(required=True, allow_null=True)
     is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
+    tags = TagField(queryset=Tags.objects.all(), many=True)
 
     class Meta:
         model = Recipes
         fields = (
             'id', 'name', 'tags', 'author', 'ingredients',
-            'is_favorited',
+            'is_favorited', 'is_in_shopping_cart',
             'text', 'cooking_time', 'image',
         )
 
@@ -89,6 +99,12 @@ class RecipesSerializer(serializers.ModelSerializer):
         user = self.context.get('request').user
         if user.is_authenticated:
             return obj in user.favorite.all()
+        return False
+
+    def get_is_in_shopping_cart(self, obj):
+        user = self.context.get('request').user
+        if user.is_authenticated:
+            return obj in user.shopping_cart.all()
         return False
 
     def create(self, validated_data):

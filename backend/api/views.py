@@ -17,7 +17,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from .filters import RecipesFilter
+from .filters import RecipesFilter, IngredientsFilter
 from .pagination import LimitPageNumberPagination
 from .serializers import (
     FavoriteSerializer,
@@ -29,7 +29,6 @@ from .serializers import (
     UsersSerializer,
 )
 from djoser.serializers import UserCreateSerializer, SetPasswordSerializer
-from djoser.views import UserViewSet as DjoserUserViewSet
 
 User = get_user_model()
 
@@ -44,6 +43,8 @@ class RecipesViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "list":
+            self.permission_classes = [AllowAny]
+        if self.action == "retrive":
             self.permission_classes = [AllowAny]
         return super().get_permissions()
 
@@ -146,15 +147,17 @@ class RecipesViewSet(viewsets.ModelViewSet):
         )
 
 
-class IngredientsViewSet(viewsets.ModelViewSet):
+class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
     """Viewset модели Ingredients"""
     queryset = Ingredients.objects.all()
     serializer_class = IngredientsSerializer
     pagination_class = None
     permission_classes = [AllowAny]
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientsFilter
 
 
-class TagsViewSet(viewsets.ModelViewSet):
+class TagsViewSet(viewsets.ReadOnlyModelViewSet):
     """Viewset модели Tags"""
     queryset = Tags.objects.all()
     serializer_class = TagsSerializer

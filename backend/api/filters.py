@@ -4,13 +4,12 @@ from recipes.models import Recipes, Ingredients, Tags
 
 
 class RecipesFilter(filters.FilterSet):
-    """
-    Класс фильтров для предоставления Recipes.
-    """
+    """Класс фильтров для предоставления Recipes."""
     tags = filters.ModelMultipleChoiceFilter(
         field_name='tags__slug',
         to_field_name='slug',
-        queryset=Tags.objects.all()
+        queryset=Tags.objects.all(),
+        conjoined=True,
     )
     author = filters.NumberFilter(
         field_name='author__pk',
@@ -47,9 +46,7 @@ class RecipesFilter(filters.FilterSet):
 
 
 class IngredientsFilter(filters.FilterSet):
-    """
-    Класс фильтров для предоставления Ingredients.
-    """
+    """Класс фильтров для предоставления Ingredients."""
     name = filters.CharFilter(
         field_name='name',
         lookup_expr='istartswith',
