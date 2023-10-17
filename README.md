@@ -1,1 +1,1 @@
-# praktikum_new_diplom
+```python manage.py load_data```
