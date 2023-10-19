@@ -1,14 +1,14 @@
 from django_filters import rest_framework as filters
 
-from recipes.models import Recipes, Ingredients, Tags
+from recipes.models import Recipe, Ingredient, Tag
 
 
-class RecipesFilter(filters.FilterSet):
-    """Класс фильтров для предоставления Recipes."""
+class RecipeFilter(filters.FilterSet):
+    '''Класс фильтров для предоставления Recipe.'''
     tags = filters.ModelMultipleChoiceFilter(
         field_name='tags__slug',
         to_field_name='slug',
-        queryset=Tags.objects.all(),
+        queryset=Tag.objects.all(),
         conjoined=True,
     )
     author = filters.NumberFilter(
@@ -41,17 +41,17 @@ class RecipesFilter(filters.FilterSet):
         return queryset
 
     class Meta:
-        model = Recipes
+        model = Recipe
         fields = ['tags', 'author']
 
 
-class IngredientsFilter(filters.FilterSet):
-    """Класс фильтров для предоставления Ingredients."""
+class IngredientFilter(filters.FilterSet):
+    '''Класс фильтров для предоставления Ingredient.'''
     name = filters.CharFilter(
         field_name='name',
         lookup_expr='istartswith',
     )
 
     class Meta:
-        model = Ingredients
+        model = Ingredient
         fields = ['name']

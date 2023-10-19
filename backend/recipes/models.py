@@ -5,69 +5,75 @@ from django.db import models
 User = get_user_model()
 
 
-class Ingredients(models.Model):
+class Ingredient(models.Model):
+    '''Модель ингредиентов'''
     name = models.CharField(max_length=256)
     measurement_unit = models.CharField(max_length=16)
 
+    def __str__(self):
+        return f'{self.name}, {self.measurement_unit}'
 
-class Tags(models.Model):
+
+class Tag(models.Model):
+    '''Модель тегов'''
     name = models.CharField(max_length=200, unique=True)
     color = models.CharField(max_length=7, unique=True)
     slug = models.SlugField(max_length=200, unique=True)
 
+    def __str__(self):
+        return f'{self.slug}'
 
-class Recipes(models.Model):
+
+class Recipe(models.Model):
+    '''Модель рецептов'''
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='recipes'
     )
     tags = models.ManyToManyField(
-        Tags,
+        Tag,
         related_name='recipes'
     )
     image = models.ImageField(
-        upload_to='recipes/'
+        upload_to='recipes/images'
     )
     name = models.CharField(max_length=200)
     text = models.TextField()
     cooking_time = models.IntegerField(
         validators=[MinValueValidator(1)]
     )
-    followers = models.ManyToManyField(User, related_name='favorite')
+    followers = models.ManyToManyField(User,
+                                       related_name='favorite',
+                                       blank=True)
+
+    def __str__(self):
+        return f'{self.id}'
 
 
-class IngredientsAmount(models.Model):
-    ingredients = models.ForeignKey(Ingredients, on_delete=models.CASCADE)
+class IngredientAmount(models.Model):
+    '''Промежуточная модель ингредиентов и рецептов'''
+    ingredients = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
     recipe = models.ForeignKey(
-        Recipes,
+        Recipe,
         on_delete=models.CASCADE,
         related_name='ingredients'
     )
-    amount = models.IntegerField()
+    amount = models.IntegerField(validators=[MinValueValidator(1)])
 
-
-class Follow(models.Model):
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='follower',
-    )
-    author = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='following',
-    )
+    def __str__(self):
+        return f'{self.ingredients.name}'
 
 
 class ShoppingCart(models.Model):
+    '''Модель списка покупок'''
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='shopping_cart',
     )
     recipe = models.ForeignKey(
-        Recipes,
+        Recipe,
         on_delete=models.CASCADE,
         related_name='shopping_cart',
     )

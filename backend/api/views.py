@@ -4,63 +4,53 @@ from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import FileResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from recipes.models import (
-    Follow,
-    Ingredients,
-    IngredientsAmount,
-    Recipes,
-    ShoppingCart,
-    Tags,
-)
-from rest_framework import status, viewsets, mixins
+from djoser.serializers import SetPasswordSerializer, UserCreateSerializer
+from recipes.models import (Ingredient, IngredientAmount, Recipe, ShoppingCart,
+                            Tag)
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from users.models import Follow
 
-from .filters import RecipesFilter, IngredientsFilter
+from .filters import IngredientFilter, RecipeFilter
 from .pagination import LimitPageNumberPagination
 from .permissions import AuthorOrReadOnly
-from .serializers import (
-    FavoriteSerializer,
-    IngredientsSerializer,
-    RecipesSerializer,
-    ShoppingCartSerializer,
-    SubscriptionsSerializer,
-    TagsSerializer,
-    UsersSerializer,
-)
-from djoser.serializers import UserCreateSerializer, SetPasswordSerializer
+from .serializers import (FavoriteSerializer, IngredientSerializer,
+                          RecipeSerializer, ShoppingCartSerializer,
+                          SubscriptionSerializer, TagSerializer,
+                          UserSerializer)
 
 User = get_user_model()
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    """Viewset модели Recipes."""
-    queryset = Recipes.objects.all()
-    serializer_class = RecipesSerializer
+    '''Viewset модели Recipe.'''
+    queryset = Recipe.objects.all()
+    serializer_class = RecipeSerializer
     pagination_class = LimitPageNumberPagination
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = RecipesFilter
+    filterset_class = RecipeFilter
     permission_classes = [AuthorOrReadOnly]
 
     def get_permissions(self):
-        if self.action == "update":
+        if self.action == 'update':
             self.permission_classes = [IsAdminUser]
-        elif self.action == "favorite":
+        elif self.action == 'favorite':
             self.permission_classes = [IsAuthenticated]
-        elif self.action == "favorite_delete":
+        elif self.action == 'favorite_delete':
             self.permission_classes = [IsAuthenticated]
-        elif self.action == "download_shopping_cart":
+        elif self.action == 'download_shopping_cart':
             self.permission_classes = [IsAuthenticated]
-        elif self.action == "shopping_cart":
+        elif self.action == 'shopping_cart':
             self.permission_classes = [IsAuthenticated]
-        elif self.action == "shopping_cart_delete":
+        elif self.action == 'shopping_cart_delete':
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
 
     @action(detail=True, methods=['post'])
     def favorite(self, request, pk=None):
-        """Добавляет рецепт в избранное."""
+        '''Добавляет рецепт в избранное.'''
         recipe = self.get_object()
         user = request.user
         if recipe.followers.filter(pk=user.pk):
@@ -77,7 +67,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @favorite.mapping.delete
     def favorite_delete(self, request, pk=None):
-        """Удаляет рецепт из избранного."""
+        '''Удаляет рецепт из избранного.'''
         recipe = self.get_object()
         user = request.user
         if recipe.followers.filter(pk=user.pk):
@@ -90,23 +80,25 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def download_shopping_cart(self, request):
-        """Возвращает файл списка покупок."""
+        '''Возвращает файл списка покупок.'''
         user = request.user
         shopping_cart = ShoppingCart.objects.filter(user=user)
         recipes = []
         for i in shopping_cart:
             recipes.append(i.recipe)
-        p = IngredientsAmount.objects.filter(recipe__in=recipes).values(
+        ingredients = IngredientAmount.objects.filter(
+            recipe__in=recipes
+        ).values(
             'ingredients__name',
             'ingredients__measurement_unit'
         ).annotate(Sum('amount'))
-        to_file = ['Список покупок:\n'.encode("utf-8")]
-        for i in p:
+        to_file = ['Список покупок:\n'.encode('utf-8')]
+        for i in ingredients:
             name = i.get('ingredients__name')
             amount = i.get('amount__sum')
             measurment_unit = i.get('ingredients__measurement_unit')
             to_file.append(
-                f'{name} — {amount} {measurment_unit}\n'.encode("utf-8")
+                f'{name} — {amount} {measurment_unit}\n'.encode('utf-8')
             )
         file = BytesIO()
         file.writelines(to_file)
@@ -120,7 +112,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def shopping_cart(self, request, pk=None):
-        """Добавляет рецепт в список покупок."""
+        '''Добавляет рецепт в список покупок.'''
         recipe = self.get_object()
         user = request.user
         if ShoppingCart.objects.filter(user=user, recipe=recipe):
@@ -141,7 +133,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @shopping_cart.mapping.delete
     def shopping_cart_delete(self, request, pk=None):
-        """Удаляет рецепт из списка покупок."""
+        '''Удаляет рецепт из списка покупок.'''
         recipe = self.get_object()
         user = request.user
         in_shopping_cart = ShoppingCart.objects.filter(
@@ -157,86 +149,86 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
 
 
-class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
-    """Viewset модели Ingredients."""
-    queryset = Ingredients.objects.all()
-    serializer_class = IngredientsSerializer
+class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
+    '''Viewset модели Ingredient.'''
+    queryset = Ingredient.objects.all()
+    serializer_class = IngredientSerializer
     pagination_class = None
     permission_classes = [AllowAny]
     filter_backends = (DjangoFilterBackend,)
-    filterset_class = IngredientsFilter
+    filterset_class = IngredientFilter
 
 
-class TagsViewSet(viewsets.ReadOnlyModelViewSet):
-    """Viewset модели Tags."""
-    queryset = Tags.objects.all()
-    serializer_class = TagsSerializer
+class TagViewSet(viewsets.ReadOnlyModelViewSet):
+    '''Viewset модели Tag.'''
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
     pagination_class = None
     permission_classes = [AllowAny]
 
 
-class UsersViewSet(mixins.CreateModelMixin,
-                   mixins.ListModelMixin,
-                   mixins.RetrieveModelMixin,
-                   viewsets.GenericViewSet):
-    """Viewset модели User."""
+class UserViewSet(mixins.CreateModelMixin,
+                  mixins.ListModelMixin,
+                  mixins.RetrieveModelMixin,
+                  viewsets.GenericViewSet):
+    '''Viewset модели User.'''
     queryset = User.objects.all()
-    # serializer_class = UsersSerializer
+    # serializer_class = UserSerializer
     pagination_class = LimitPageNumberPagination
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
-        if self.action == "create":
+        if self.action == 'create':
             return UserCreateSerializer
-        elif self.action == "set_password":
+        elif self.action == 'set_password':
             return SetPasswordSerializer
-        return UsersSerializer
+        return UserSerializer
 
     def get_permissions(self):
-        if self.action == "create":
+        if self.action == 'create':
             self.permission_classes = [AllowAny]
-        elif self.action == "list":
+        elif self.action == 'list':
             self.permission_classes = [AllowAny]
-        elif self.action == "retrieve":
+        elif self.action == 'retrieve':
             self.permission_classes = [AllowAny]
         return super().get_permissions()
 
     @action(detail=False, methods=['get'])
     def me(self, request, *args, **kwargs):
-        """Отображает текущего авторизованного пользователя."""
+        '''Отображает текущего авторизованного пользователя.'''
         user = request.user
         serializer = self.get_serializer(user)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
     def set_password(self, request):
-        """Устанавливает новый пароль пользователю."""
+        '''Устанавливает новый пароль пользователю.'''
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.request.user.set_password(serializer.data["new_password"])
+        self.request.user.set_password(serializer.data['new_password'])
         self.request.user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=False, methods=['get'],
-        serializer_class=SubscriptionsSerializer,
+        serializer_class=SubscriptionSerializer,
     )
     def subscriptions(self, request, *args, **kwargs):
-        """Возвращает пользователей, на которых подписан текущий пользователь.
+        '''Возвращает пользователей, на которых подписан текущий пользователь.
         В выдачу добавляются рецепты.
-        """
+        '''
         user = request.user
         pages = self.paginate_queryset(
             User.objects.filter(following__user=user).order_by('pk')
         )
-        serializer = SubscriptionsSerializer(
+        serializer = SubscriptionSerializer(
             pages, many=True, context={'request': request},
         )
         return self.get_paginated_response(serializer.data)
 
     @action(detail=True, methods=['post'])
     def subscribe(self, request, pk=None):
-        """Подписаться на пользователя."""
+        '''Подписаться на пользователя.'''
         author = self.get_object()
         user = request.user
         if user.follower.filter(user=user, author=author):
@@ -251,7 +243,7 @@ class UsersViewSet(mixins.CreateModelMixin,
             )
         f = Follow.objects.create(user=user, author=author)
         f.save()
-        serializer = SubscriptionsSerializer(
+        serializer = SubscriptionSerializer(
             author, context={'request': request},
         )
         return Response(
@@ -261,7 +253,7 @@ class UsersViewSet(mixins.CreateModelMixin,
 
     @subscribe.mapping.delete
     def unsubscribe(self, request, pk=None):
-        """Отписаться от пользователя."""
+        '''Отписаться от пользователя.'''
         author = self.get_object()
         user = request.user
         if user.follower.filter(user=user, author=author):
