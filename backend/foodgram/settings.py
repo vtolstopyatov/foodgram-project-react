@@ -33,8 +33,6 @@ ALLOWED_HOSTS = [
     'aboba.pro',
 ]
 
-# CSRF_TRUSTED_ORIGINS = ["http://aboba.pro"]
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -161,7 +159,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-   'AUTH_HEADER_TYPES': ('JWT',),
+    'AUTH_HEADER_TYPES': ('JWT',),
 }
 
 AUTH_USER_MODEL = 'users.User'
