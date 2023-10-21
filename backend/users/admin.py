@@ -6,6 +6,11 @@ from rest_framework.authtoken.models import TokenProxy
 
 User = get_user_model()
 
-admin.site.register(User, UserAdmin)
+
+class CustomUserAdmin(UserAdmin):
+    search_fields = ['username', 'email']
+
+
+admin.site.register(User, CustomUserAdmin)
 admin.site.unregister(TokenProxy)
 admin.site.unregister(Group)

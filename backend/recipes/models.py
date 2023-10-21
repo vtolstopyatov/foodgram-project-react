@@ -48,7 +48,7 @@ class Recipe(models.Model):
                                        blank=True)
 
     def __str__(self):
-        return f'{self.id}'
+        return f'{self.name}'
 
 
 class IngredientAmount(models.Model):

@@ -7,7 +7,7 @@ from .models import Ingredient, IngredientAmount, Recipe, Tag
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     '''Админка ингредиентов'''
-    list_display = ['name', 'id']
+    list_display = ['name', 'measurement_unit']
     ordering = ['name']
     search_fields = ['name']
 
@@ -39,8 +39,12 @@ class IngredientAmountInline(admin.TabularInline):
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     '''Админка рецептов.'''
-    readonly_fields = ['id']
-    list_display = ['id', 'name', 'author']
+    readonly_fields = ['id', 'follower_count']
+    list_display = ['name', 'author']
     inlines = [IngredientAmountInline]
-    search_fields = ['name', 'author__email']
+    search_fields = ['author__email', 'name', 'tags__name']
     filter_horizontal = ['followers']
+
+    @admin.display(description='Follower count')
+    def follower_count(self, instance):
+        return instance.followers.count()
