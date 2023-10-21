@@ -33,7 +33,7 @@ ALLOWED_HOSTS = [
     'aboba.pro',
 ]
 
-CSRF_TRUSTED_ORIGINS = ["http://aboba.pro"]
+# CSRF_TRUSTED_ORIGINS = ["http://aboba.pro"]
 
 # Application definition
 

@@ -1,3 +1,4 @@
+![example workflow](https://github.com/vtolstopyatov/foodgram-project-react/actions/workflows//foodgram_workflow.yml/badge.svg)
 # Описание:
 Cайт Foodgram, «Продуктовый помощник».
 
