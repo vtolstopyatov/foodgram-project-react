@@ -16,7 +16,6 @@ jobs:
       - name: Push to Docker Hub
         uses: docker/build-push-action@v5
         with:
-          file: backend/Dockerfile
           context: "{{defaultContext}}:backend"
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/foodgram:latest
