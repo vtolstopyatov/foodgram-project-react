@@ -2,7 +2,7 @@ version: '3.3'
 services:
 
   frontend:
-    image: vtolstopyatov/foodgram-frontend:latest
+    image: vtolstopyatov/foodgram-frontend:v1
     volumes:
       - ../frontend/:/app/result_build/
   db:
