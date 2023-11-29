@@ -1,17 +1,16 @@
 from io import BytesIO
 
-from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import FileResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from djoser.serializers import SetPasswordSerializer, UserCreateSerializer
-from recipes.models import (Ingredient, IngredientAmount, Recipe, ShoppingCart,
-                            Tag)
-from rest_framework import mixins, status, viewsets
+from djoser.views import UserViewSet as DjoserUserViewSet
+from recipes.models import (Favorite, Ingredient, IngredientAmount, Recipe,
+                            ShoppingCart, Tag)
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-from users.models import Follow
+from users.models import Follow, User
 
 from .filters import IngredientFilter, RecipeFilter
 from .pagination import LimitPageNumberPagination
@@ -21,8 +20,6 @@ from .serializers import (FavoriteSerializer, IngredientSerializer,
                           SubscriptionSerializer, TagSerializer,
                           UserSerializer)
 
-User = get_user_model()
-
 
 class RecipeViewSet(viewsets.ModelViewSet):
     '''Viewset модели Recipe.'''
@@ -31,54 +28,72 @@ class RecipeViewSet(viewsets.ModelViewSet):
     pagination_class = LimitPageNumberPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
-    permission_classes = [AuthorOrReadOnly]
+    permission_classes = (IsAdminUser | AuthorOrReadOnly,)
 
-    def get_permissions(self):
-        if self.action == 'update':
-            self.permission_classes = [IsAdminUser]
-        elif self.action == 'favorite':
-            self.permission_classes = [IsAuthenticated]
-        elif self.action == 'favorite_delete':
-            self.permission_classes = [IsAuthenticated]
-        elif self.action == 'download_shopping_cart':
-            self.permission_classes = [IsAuthenticated]
-        elif self.action == 'shopping_cart':
-            self.permission_classes = [IsAuthenticated]
-        elif self.action == 'shopping_cart_delete':
-            self.permission_classes = [IsAuthenticated]
-        return super().get_permissions()
-
-    @action(detail=True, methods=['post'])
-    def favorite(self, request, pk=None):
-        '''Добавляет рецепт в избранное.'''
+    def create_relation(self, request, model, serializer_class):
+        '''Создаёт отношение между объектом запроса и моделью.'''
         recipe = self.get_object()
         user = request.user
-        if recipe.followers.filter(pk=user.pk):
+        verbose_name = model._meta.verbose_name
+        if model.objects.filter(user=user, recipe=recipe):
             return Response(
-                {'errors': 'already in favorites'},
+                {'errors': f'already in {verbose_name}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        serializer = FavoriteSerializer(recipe, context={'request': request})
-        recipe.followers.add(user)
+        serializer = serializer_class(
+            recipe,
+            context={'request': request}
+        )
+        f = model.objects.create(user=user, recipe=recipe)
+        f.save()
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
         )
 
-    @favorite.mapping.delete
-    def favorite_delete(self, request, pk=None):
-        '''Удаляет рецепт из избранного.'''
+    def delete_relation(self, request, model):
+        '''Удаляет отношение между объектом запроса и моделью.'''
         recipe = self.get_object()
         user = request.user
-        if recipe.followers.filter(pk=user.pk):
-            recipe.followers.remove(user)
+        relations = model.objects.filter(
+            user=user,
+            recipe=recipe
+        )
+        if relations:
+            relations.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
+        verbose_name = model._meta.verbose_name
         return Response(
-            {'errors': 'not in favorites'},
+            {'errors': f'not in {verbose_name}'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=True,
+            methods=['post'],
+            permission_classes=(IsAuthenticated,))
+    def favorite(self, request, pk=None):
+        '''Добавляет рецепт в избранное.'''
+        a = Favorite
+        print(a)
+        response = self.create_relation(
+            request,
+            model=Favorite,
+            serializer_class=FavoriteSerializer
+        )
+        return response
+
+    @favorite.mapping.delete
+    def favorite_delete(self, request, pk=None):
+        '''Удаляет рецепт из избранного.'''
+        response = self.delete_relation(
+            request,
+            model=Favorite,
+        )
+        return response
+
+    @action(detail=False,
+            methods=['get'],
+            permission_classes=(IsAuthenticated,))
     def download_shopping_cart(self, request):
         '''Возвращает файл списка покупок.'''
         user = request.user
@@ -110,43 +125,26 @@ class RecipeViewSet(viewsets.ModelViewSet):
         )
         return response
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True,
+            methods=['post'],
+            permission_classes=(IsAuthenticated,))
     def shopping_cart(self, request, pk=None):
         '''Добавляет рецепт в список покупок.'''
-        recipe = self.get_object()
-        user = request.user
-        if ShoppingCart.objects.filter(user=user, recipe=recipe):
-            return Response(
-                {'errors': 'already in shopping cart'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        serializer = ShoppingCartSerializer(
-            recipe,
-            context={'request': request}
+        response = self.create_relation(
+            request,
+            model=ShoppingCart,
+            serializer_class=ShoppingCartSerializer
         )
-        f = ShoppingCart.objects.create(user=user, recipe=recipe)
-        f.save()
-        return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED
-        )
+        return response
 
     @shopping_cart.mapping.delete
     def shopping_cart_delete(self, request, pk=None):
         '''Удаляет рецепт из списка покупок.'''
-        recipe = self.get_object()
-        user = request.user
-        in_shopping_cart = ShoppingCart.objects.filter(
-            user=user,
-            recipe=recipe
+        response = self.delete_relation(
+            request,
+            model=ShoppingCart,
         )
-        if in_shopping_cart:
-            in_shopping_cart.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(
-            {'errors': 'not in shopping cart'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return response
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -154,7 +152,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
-    permission_classes = [AllowAny]
+    permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = IngredientFilter
 
@@ -164,54 +162,23 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     pagination_class = None
-    permission_classes = [AllowAny]
+    permission_classes = (AllowAny,)
 
 
-class UserViewSet(mixins.CreateModelMixin,
-                  mixins.ListModelMixin,
-                  mixins.RetrieveModelMixin,
-                  viewsets.GenericViewSet):
+class UserViewSet(DjoserUserViewSet):
     '''Viewset модели User.'''
-    queryset = User.objects.all()
-    # serializer_class = UserSerializer
+    serializer_class = UserSerializer
     pagination_class = LimitPageNumberPagination
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_class(self):
-        if self.action == 'create':
-            return UserCreateSerializer
-        elif self.action == 'set_password':
-            return SetPasswordSerializer
-        return UserSerializer
 
     def get_permissions(self):
-        if self.action == 'create':
-            self.permission_classes = [AllowAny]
-        elif self.action == 'list':
-            self.permission_classes = [AllowAny]
-        elif self.action == 'retrieve':
+        if self.action == 'retrieve':
             self.permission_classes = [AllowAny]
         return super().get_permissions()
-
-    @action(detail=False, methods=['get'])
-    def me(self, request, *args, **kwargs):
-        '''Отображает текущего авторизованного пользователя.'''
-        user = request.user
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['post'])
-    def set_password(self, request):
-        '''Устанавливает новый пароль пользователю.'''
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.request.user.set_password(serializer.data['new_password'])
-        self.request.user.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=False, methods=['get'],
         serializer_class=SubscriptionSerializer,
+        permission_classes=(IsAuthenticated,),
     )
     def subscriptions(self, request, *args, **kwargs):
         '''Возвращает пользователей, на которых подписан текущий пользователь.
@@ -226,8 +193,10 @@ class UserViewSet(mixins.CreateModelMixin,
         )
         return self.get_paginated_response(serializer.data)
 
-    @action(detail=True, methods=['post'])
-    def subscribe(self, request, pk=None):
+    @action(detail=True,
+            methods=['post'],
+            permission_classes=(IsAuthenticated,),)
+    def subscribe(self, request, id=None):
         '''Подписаться на пользователя.'''
         author = self.get_object()
         user = request.user
@@ -252,7 +221,7 @@ class UserViewSet(mixins.CreateModelMixin,
         )
 
     @subscribe.mapping.delete
-    def unsubscribe(self, request, pk=None):
+    def unsubscribe(self, request, id=None):
         '''Отписаться от пользователя.'''
         author = self.get_object()
         user = request.user
