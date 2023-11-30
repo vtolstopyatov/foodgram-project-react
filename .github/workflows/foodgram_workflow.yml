@@ -43,4 +43,6 @@ jobs:
             echo DB_PORT=${{ secrets.DB_PORT }} >> .env
             echo DJANGO_KEY=${{ secrets.DJANGO_KEY }} >> .env
             echo DEBUG=${{ secrets.DEBUG }} >> .env
+            echo DEBUG=${{ secrets.ALLOWED_HOSTS }} >> .env
+            echo DEBUG=${{ secrets.CSRF_TRUSTED_ORIGINS }} >> .env
             sudo docker-compose up -d
