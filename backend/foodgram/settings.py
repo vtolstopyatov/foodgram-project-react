@@ -9,16 +9,9 @@ SECRET_KEY = os.getenv('DJANGO_KEY')
 
 DEBUG = strtobool(os.getenv('DEBUG', 'False'))
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    'web',
-    'aboba.pro',
-]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS')
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://aboba.pro",
-]
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -30,6 +23,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'djoser',
+    'django_filters',
     'recipes',
     'api',
     'users',
@@ -116,6 +110,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',

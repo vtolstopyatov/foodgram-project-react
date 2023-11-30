@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from django.contrib.auth import get_user_model
 from recipes.models import (Ingredient, IngredientAmount, Recipe, ShoppingCart,
                             Tag)
@@ -65,10 +67,28 @@ class TagSerializer(serializers.ModelSerializer):
 class TagField(serializers.PrimaryKeyRelatedField):
     '''Поле кастомного представления тегов.'''
 
-    def to_representation(self, value):
+    def to_representation(self, value, pk=False):
+        if pk:
+            return value.id
         return TagSerializer(value, context={
             'request': self.context.get('request')
         }).data
+
+    def get_choices(self, cutoff=None):
+        queryset = self.get_queryset()
+        if queryset is None:
+            return {}
+
+        if cutoff is not None:
+            queryset = queryset[:cutoff]
+
+        return OrderedDict([
+            (
+                self.to_representation(item, pk=True),
+                self.display_value(item)
+            )
+            for item in queryset
+        ])
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -100,7 +120,9 @@ class RecipeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 'At least one ingredient required'
             )
-        unique_ingredints = {x['ingredients']['pk'] for x in ingredients}
+        unique_ingredints = {
+            ingredient['ingredients']['pk'] for ingredient in ingredients
+        }
         if len(ingredients) != len(unique_ingredints):
             raise serializers.ValidationError('Ingredients must be unique')
         return ingredients
@@ -122,9 +144,9 @@ class RecipeSerializer(serializers.ModelSerializer):
     def ingredients_create(self, recipe, ingredients):
         ingredients_amount = [IngredientAmount(
             recipe=recipe,
-            ingredients=i['ingredients']['pk'],
-            amount=int(i['amount']),
-        ) for i in ingredients]
+            ingredients=ingredient['ingredients']['pk'],
+            amount=int(ingredient['amount']),
+        ) for ingredient in ingredients]
         IngredientAmount.objects.bulk_create(ingredients_amount)
 
     def create(self, validated_data):

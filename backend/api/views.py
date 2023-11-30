@@ -73,8 +73,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
             permission_classes=(IsAuthenticated,))
     def favorite(self, request, pk=None):
         '''Добавляет рецепт в избранное.'''
-        a = Favorite
-        print(a)
         response = self.create_relation(
             request,
             model=Favorite,
